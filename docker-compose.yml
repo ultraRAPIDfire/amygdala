@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: amygdala
+      POSTGRES_PASSWORD: amygdala
+      POSTGRES_DB: amygdala
+    ports:
+      - "5433:5432"
+    volumes:
+      - amygdala_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  amygdala_postgres_data:

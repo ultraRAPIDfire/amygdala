@@ -1,0 +1,270 @@
+// Amygdala — AI Business Operations Hub
+// Multi-tenant schema: every business-data model is scoped to an Organization.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  STAFF
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  WON
+  LOST
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum EmailIntent {
+  COMPLAINT
+  INQUIRY
+  REFUND
+  ORDER
+  PARTNERSHIP
+  OTHER
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  URGENT
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users         User[]
+  customers     Customer[]
+  appointments  Appointment[]
+  leads         Lead[]
+  invoices      Invoice[]
+  conversations Conversation[]
+  notifications Notification[]
+  aiTasks       AiTask[]
+  emailThreads  EmailThread[]
+  documents     Document[]
+  kbArticles    KnowledgeBaseArticle[]
+}
+
+model User {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(STAFF)
+  createdAt    DateTime @default(now())
+
+  assignedLeads Lead[] @relation("AssignedSalesperson")
+
+  @@index([organizationId])
+}
+
+model Customer {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name      String
+  email     String?
+  phone     String?
+  notes     String?
+  aiSummary String?
+  createdAt DateTime @default(now())
+
+  appointments Appointment[]
+  invoices     Invoice[]
+  purchases    Purchase[]
+
+  @@index([organizationId])
+}
+
+model Purchase {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  item      String
+  amount    Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+
+  @@index([customerId])
+}
+
+model Appointment {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customerId     String
+  customer       Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  title     String
+  startsAt  DateTime
+  status    AppointmentStatus @default(PENDING)
+  notes     String?
+  createdAt DateTime          @default(now())
+
+  @@index([organizationId])
+}
+
+model Lead {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name          String
+  email         String?
+  phone         String?
+  source        String?
+  status        LeadStatus @default(NEW)
+  assignedToId  String?
+  assignedTo    User?      @relation("AssignedSalesperson", fields: [assignedToId], references: [id])
+  aiInsight     String?
+  createdAt     DateTime   @default(now())
+
+  @@index([organizationId])
+}
+
+model Invoice {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customerId     String
+  customer       Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  number    String
+  amount    Decimal       @db.Decimal(10, 2)
+  status    InvoiceStatus @default(DRAFT)
+  dueDate   DateTime
+  createdAt DateTime      @default(now())
+
+  @@unique([organizationId, number])
+  @@index([organizationId])
+}
+
+model Conversation {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  customerName String
+  channel      String   @default("web")
+  resolvedByAi Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  messages Message[]
+
+  @@index([organizationId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  role      String // "customer" | "ai" | "staff"
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([conversationId])
+}
+
+model EmailThread {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  fromAddress String
+  subject     String
+  body        String
+  intent      EmailIntent @default(OTHER)
+  draftReply  String?
+  approved    Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+
+  @@index([organizationId])
+}
+
+model Document {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  type      String // quotation | invoice | contract | receipt | proposal
+  title     String
+  fileUrl   String?
+  createdAt DateTime @default(now())
+
+  @@index([organizationId])
+}
+
+model KnowledgeBaseArticle {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  title     String
+  content   String
+  sourceUrl String?
+  createdAt DateTime @default(now())
+
+  @@index([organizationId])
+}
+
+model Notification {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  type      NotificationType @default(INFO)
+  title     String
+  body      String
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([organizationId])
+}
+
+model AiTask {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  label       String
+  category    String // chat | scheduling | email | document | analytics
+  completedAt DateTime @default(now())
+
+  @@index([organizationId])
+}

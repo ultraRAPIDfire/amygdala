@@ -3,7 +3,29 @@
     "allow": [
       "Bash(npm -v)",
       "Bash(npx --version)",
-      "Bash(npx --yes create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm --no-turbopack)"
+      "Bash(npx --yes create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm --no-turbopack)",
+      "Bash(npm install *)",
+      "Bash(docker --version)",
+      "Bash(docker compose *)",
+      "PowerShell(Get-Process \"Docker Desktop\" -ErrorAction SilentlyContinue; Test-Path \"$env:ProgramFiles\\\\Docker\\\\Docker\\\\Docker Desktop.exe\")",
+      "PowerShell(Start-Process \"$env:ProgramFiles\\\\Docker\\\\Docker\\\\Docker Desktop.exe\")",
+      "Bash(npx prisma *)",
+      "Bash(docker info *)",
+      "Bash(docker rm *)",
+      "Bash(npm uninstall *)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(gh --version)",
+      "Bash(vercel --version)",
+      "Bash(npx --yes neonctl --version)",
+      "Bash(where gh *)",
+      "Bash(where vercel *)",
+      "Bash(where npx *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://api.github.com/repos/ultraRAPIDfire/amygdala)",
+      "Bash(curl -s https://api.github.com/repos/ultraRAPIDfire/amygdala)",
+      "Bash(git branch *)",
+      "Bash(git remote *)",
+      "Bash(git add *)"
     ]
   }
 }
