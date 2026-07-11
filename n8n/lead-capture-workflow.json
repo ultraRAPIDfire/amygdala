@@ -1,5 +1,5 @@
 {
-  "name": "Amygdala - Lead Capture",
+  "name": "Amygdala - Lead Capture (AI Triage)",
   "nodes": [
     {
       "parameters": {
@@ -12,42 +12,17 @@
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-140, 0]
+      "position": [-560, 0]
     },
     {
       "parameters": {
         "assignments": {
           "assignments": [
-            {
-              "id": "assign-name",
-              "name": "name",
-              "type": "string",
-              "value": "={{ $json.body.lead.name }}"
-            },
-            {
-              "id": "assign-email",
-              "name": "email",
-              "type": "string",
-              "value": "={{ $json.body.lead.email }}"
-            },
-            {
-              "id": "assign-phone",
-              "name": "phone",
-              "type": "string",
-              "value": "={{ $json.body.lead.phone || 'n/a' }}"
-            },
-            {
-              "id": "assign-message",
-              "name": "message",
-              "type": "string",
-              "value": "={{ $json.body.lead.message || '(no message)' }}"
-            },
-            {
-              "id": "assign-leadId",
-              "name": "leadId",
-              "type": "string",
-              "value": "={{ $json.body.lead.id }}"
-            }
+            { "id": "assign-name", "name": "name", "type": "string", "value": "={{ $json.body.lead.name }}" },
+            { "id": "assign-email", "name": "email", "type": "string", "value": "={{ $json.body.lead.email }}" },
+            { "id": "assign-phone", "name": "phone", "type": "string", "value": "={{ $json.body.lead.phone || 'n/a' }}" },
+            { "id": "assign-message", "name": "message", "type": "string", "value": "={{ $json.body.lead.message || '(no message)' }}" },
+            { "id": "assign-leadId", "name": "leadId", "type": "string", "value": "={{ $json.body.lead.id }}" }
           ]
         },
         "options": {}
@@ -56,7 +31,58 @@
       "name": "Normalize Lead",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [80, 0]
+      "position": [-340, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o-mini', temperature: 0.3, response_format: { type: 'json_object' }, messages: [ { role: 'system', content: 'You are a sales lead triage assistant for a small business called Amygdala. Given a lead name, email, and message, respond with strict JSON only: {\"insight\": string, \"priority\": \"NEW\"|\"CONTACTED\"|\"QUALIFIED\"}. Use QUALIFIED for clear buying intent, budget, or urgency. Use CONTACTED for a generic but engaged inquiry. Use NEW when there is minimal signal.' }, { role: 'user', content: 'Name: ' + $json.name + '\\nEmail: ' + $json.email + '\\nMessage: ' + $json.message } ] }) }}",
+        "options": {}
+      },
+      "id": "8e1c2b1a-1111-4a11-9a11-000000000005",
+      "name": "AI Triage (OpenAI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-120, 0],
+      "notes": "Select your OpenAI credential after import (Authentication: Predefined Credential Type)."
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nreturn items.map((item) => {\n  let insight = 'AI analysis unavailable';\n  let priority = 'NEW';\n  try {\n    const content = item.json.choices[0].message.content;\n    const parsed = JSON.parse(content);\n    if (parsed.insight) insight = parsed.insight;\n    if (['NEW', 'CONTACTED', 'QUALIFIED'].includes(parsed.priority)) priority = parsed.priority;\n  } catch (e) {\n    // keep fallback values\n  }\n  return {\n    json: {\n      leadId: $('Normalize Lead').item.json.leadId,\n      name: $('Normalize Lead').item.json.name,\n      email: $('Normalize Lead').item.json.email,\n      aiInsight: insight,\n      priority,\n    },\n  };\n});"
+      },
+      "id": "8e1c2b1a-1111-4a11-9a11-000000000006",
+      "name": "Parse AI Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [100, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://amygdala-chi.vercel.app/api/leads/callback",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-n8n-secret", "value": "REPLACE_WITH_N8N_CALLBACK_SECRET" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ leadId: $json.leadId, aiInsight: $json.aiInsight, priority: $json.priority }) }}",
+        "options": {}
+      },
+      "id": "8e1c2b1a-1111-4a11-9a11-000000000007",
+      "name": "Update Lead in Amygdala",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [320, 0],
+      "notes": "Replace REPLACE_WITH_N8N_CALLBACK_SECRET with the N8N_CALLBACK_SECRET value from the app's env vars."
     },
     {
       "parameters": {
@@ -64,50 +90,38 @@
         "resource": "message",
         "operation": "post",
         "select": "channel",
-        "channelId": {
-          "mode": "name",
-          "value": "#sales"
-        },
-        "text": "=🆕 New lead from amygdala.\nName: {{ $json.name }}\nEmail: {{ $json.email }}\nPhone: {{ $json.phone }}\nMessage: {{ $json.message }}",
+        "channelId": { "mode": "name", "value": "#sales" },
+        "text": "=🆕 New lead triaged by AI.\nName: {{ $json.name }}\nEmail: {{ $json.email }}\nPriority: {{ $json.status }}\nInsight: {{ $json.aiInsight }}\nAssigned to: {{ $json.assignedTo ? $json.assignedTo.name : 'Unassigned' }}",
         "otherOptions": {}
       },
       "id": "8e1c2b1a-1111-4a11-9a11-000000000003",
       "name": "Notify Slack (configure credentials)",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.3,
-      "position": [300, 0],
-      "notes": "Requires a Slack credential to be configured in n8n. Disable/delete this node if you don't use Slack yet.",
+      "position": [540, 0],
+      "notes": "Requires a Slack credential to be configured in n8n. Delete this node if you don't use Slack.",
       "continueOnFail": true
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { ok: true, leadId: $json.leadId } }}",
+        "responseBody": "={{ { ok: true, leadId: $json.leadId, assignedTo: $json.assignedTo } }}",
         "options": {}
       },
       "id": "8e1c2b1a-1111-4a11-9a11-000000000004",
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [520, 0]
+      "position": [760, 0]
     }
   ],
   "connections": {
-    "Webhook": {
-      "main": [
-        [{ "node": "Normalize Lead", "type": "main", "index": 0 }]
-      ]
-    },
-    "Normalize Lead": {
-      "main": [
-        [{ "node": "Notify Slack (configure credentials)", "type": "main", "index": 0 }]
-      ]
-    },
-    "Notify Slack (configure credentials)": {
-      "main": [
-        [{ "node": "Respond to Webhook", "type": "main", "index": 0 }]
-      ]
-    }
+    "Webhook": { "main": [[{ "node": "Normalize Lead", "type": "main", "index": 0 }]] },
+    "Normalize Lead": { "main": [[{ "node": "AI Triage (OpenAI)", "type": "main", "index": 0 }]] },
+    "AI Triage (OpenAI)": { "main": [[{ "node": "Parse AI Output", "type": "main", "index": 0 }]] },
+    "Parse AI Output": { "main": [[{ "node": "Update Lead in Amygdala", "type": "main", "index": 0 }]] },
+    "Update Lead in Amygdala": { "main": [[{ "node": "Notify Slack (configure credentials)", "type": "main", "index": 0 }]] },
+    "Notify Slack (configure credentials)": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] }
   },
   "active": false,
   "settings": { "executionOrder": "v1" }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, X, Send } from "lucide-react";
+import { Sparkles, X, Send, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,24 +11,39 @@ interface ChatEntry {
   content: string;
 }
 
-const CANNED_REPLIES: Record<string, string> = {
-  default:
-    "I can help summarize customers, draft follow-up emails, or check today's schedule. This assistant is a UI preview — connect it to OpenAI via the /api/ai route to make it live.",
-};
-
 export function AiAssistantWidget() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
+  const [pending, setPending] = useState(false);
   const [history, setHistory] = useState<ChatEntry[]>([
     { role: "ai", content: "Hi! I'm your AI assistant. Ask me about today's business." },
   ]);
 
-  function send() {
-    if (!input.trim()) return;
-    const userMsg: ChatEntry = { role: "user", content: input };
-    const aiMsg: ChatEntry = { role: "ai", content: CANNED_REPLIES.default };
-    setHistory((h) => [...h, userMsg, aiMsg]);
+  async function send() {
+    const message = input.trim();
+    if (!message || pending) return;
+
+    setHistory((h) => [...h, { role: "user", content: message }]);
     setInput("");
+    setPending(true);
+
+    try {
+      const res = await fetch("/api/ai/assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      });
+      const data = await res.json().catch(() => null);
+      const reply = data?.reply ?? "Something went wrong — please try again.";
+      setHistory((h) => [...h, { role: "ai", content: reply }]);
+    } catch {
+      setHistory((h) => [
+        ...h,
+        { role: "ai", content: "Couldn't reach the AI assistant — please try again." },
+      ]);
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -58,6 +73,12 @@ export function AiAssistantWidget() {
                 {entry.content}
               </div>
             ))}
+            {pending && (
+              <div className="mr-auto flex max-w-[85%] items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
+                <Loader2 className="size-3.5 animate-spin" />
+                Thinking…
+              </div>
+            )}
           </div>
 
           <form
@@ -72,8 +93,9 @@ export function AiAssistantWidget() {
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask the AI assistant…"
               className="h-9"
+              disabled={pending}
             />
-            <Button type="submit" size="icon" className="shrink-0">
+            <Button type="submit" size="icon" className="shrink-0" disabled={pending}>
               <Send className="size-4" />
             </Button>
           </form>

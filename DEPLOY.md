@@ -2,43 +2,45 @@
 
 ## 1. Database — Neon
 
-1. Create a free project at [neon.tech](https://neon.tech).
-2. Copy the pooled connection string (looks like
-   `postgresql://user:pass@ep-xxxx.us-east-2.aws.neon.tech/neondb?sslmode=require`).
-3. Send it to me (or run these yourself) so we can apply the schema and seed demo data:
-   ```
-   DATABASE_URL="<neon-connection-string>" npx prisma migrate deploy
-   DATABASE_URL="<neon-connection-string>" npx prisma db seed
-   ```
+Done: migrated and seeded against Neon.
 
-## 2. n8n webhook
+```
+DATABASE_URL="<neon-connection-string>" npx prisma migrate deploy
+DATABASE_URL="<neon-connection-string>" npx prisma db seed
+```
 
-Already hosted at `https://n8n.srv1769884.hstgr.cloud/`. Import
-[`n8n/lead-capture-workflow.json`](n8n/lead-capture-workflow.json) — see
-[`n8n/README.md`](n8n/README.md) for the exact steps and how to get the
-Production Webhook URL.
+## 2. n8n workflows
+
+Hosted at `https://n8n.srv1769884.hstgr.cloud/`. All AI calls (OpenAI) live
+here, not in the app — see [`n8n/README.md`](n8n/README.md) for full setup:
+
+- [`n8n/lead-capture-workflow.json`](n8n/lead-capture-workflow.json) — Webhook
+  → AI triage (insight + priority) → calls back to `/api/leads/callback` to
+  auto-assign a salesperson → Slack → respond.
+- [`n8n/ai-assistant-workflow.json`](n8n/ai-assistant-workflow.json) — powers
+  the dashboard's floating AI Assistant widget.
 
 ## 3. Vercel
 
 1. [vercel.com/new](https://vercel.com/new) → Import Git Repository →
    `ultraRAPIDfire/amygdala`. Framework preset (Next.js) is auto-detected, no
    build command changes needed.
-2. Add these Environment Variables (Project Settings → Environment Variables):
+2. Environment Variables (Project Settings → Environment Variables):
 
    | Key | Value |
    |---|---|
-   | `DATABASE_URL` | your Neon connection string |
-   | `AUTH_SECRET` | a random secret — generate with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` |
-   | `NEXTAUTH_URL` | your Vercel production URL, e.g. `https://amygdala.vercel.app` (set after first deploy, then redeploy) |
-   | `OPENAI_API_KEY` | leave blank for now — nothing calls it yet |
-   | `N8N_WEBHOOK_URL` | the Production URL from the n8n Webhook node |
+   | `DATABASE_URL` | Neon connection string |
+   | `AUTH_SECRET` | random secret — generate with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` |
+   | `NEXTAUTH_URL` | production URL, e.g. `https://amygdala-chi.vercel.app` |
+   | `N8N_WEBHOOK_URL` | Production URL of the lead-capture Webhook node |
+   | `N8N_CALLBACK_SECRET` | random secret, must match the value pasted into the "Update Lead in Amygdala" node in n8n |
+   | `N8N_ASSISTANT_WEBHOOK_URL` | Production URL of the AI-assistant Webhook node |
 
 3. Deploy. `postinstall` runs `prisma generate` automatically so the Prisma
    client is (re)built on every install — no extra build config needed.
-4. After the first deploy, copy the assigned `*.vercel.app` URL into
-   `NEXTAUTH_URL` and redeploy (Auth.js needs to know its own canonical URL).
+4. After the first deploy, confirm `NEXTAUTH_URL` matches the assigned
+   `*.vercel.app` URL and redeploy if it changed.
 
 ## Login
 
-Once seeded, sign in with `admin@acme.co` / `password123` (or
-`staff@acme.co` / `password123`).
+Sign in with `admin@acme.co` / `password123` (or `staff@acme.co` / `password123`).
