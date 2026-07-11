@@ -39,7 +39,9 @@
       "Bash(docker exec *)",
       "Bash(curl -s -X POST http://localhost:3000/api/leads/callback -H 'Content-Type: application/json' -H 'x-n8n-secret: 0ecf1e2951f6885bc227f4092512915b1eae0e9bf0f5497d' -d '{\"leadId\":\"cmrgltlc6000g1k2olfi6ptjz\",\"aiInsight\":\"High intent - asked for pricing PDF twice\",\"priority\":\"QUALIFIED\"}')",
       "Bash(curl -s -o /dev/null -w '%{http_code}\\\\n' -X POST http://localhost:3000/api/leads/callback -H 'Content-Type: application/json' -H 'x-n8n-secret: wrong-secret' -d '{\"leadId\":\"cmrgltlc6000g1k2olfi6ptjz\"}')",
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"https://raw.githubusercontent.com/ultraRAPIDfire/amygdala/main/n8n/amygdala-workflow.json\")",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('n8n/amygdala-workflow.json', 'utf8'\\)\\); console.log\\('valid JSON'\\)\")"
     ]
   }
 }

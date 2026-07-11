@@ -166,6 +166,105 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "amygdala-customer-chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "7a4e5d4c-3333-4c33-9c33-000000000001",
+      "name": "Chat Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-560, 600]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "assign-chat-message", "name": "message", "type": "string", "value": "={{ $json.body.message }}" },
+            { "id": "assign-chat-kb", "name": "kbContext", "type": "string", "value": "={{ $json.body.kbContext }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7a4e5d4c-3333-4c33-9c33-000000000002",
+      "name": "Normalize Chat",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-340, 600]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o-mini', temperature: 0.3, response_format: { type: 'json_object' }, messages: [ { role: 'system', content: 'You are the AI customer support assistant for a small business called Amygdala. Answer the customer\\'s question using ONLY the following knowledge base context. If the context does not contain enough information to answer confidently, or the question needs account/order-specific details you do not have, respond with escalate=true and a brief friendly message telling the customer a team member will follow up shortly. Respond with strict JSON only: {\"reply\": string, \"escalate\": boolean}.\\n\\nKnowledge base context:\\n' + $json.kbContext }, { role: 'user', content: $json.message } ] }) }}",
+        "options": {}
+      },
+      "id": "7a4e5d4c-3333-4c33-9c33-000000000003",
+      "name": "Ask OpenAI (Chat)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-120, 600],
+      "notes": "Set Authentication credential to your OpenAI credential after import."
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nreturn items.map((item) => {\n  let reply = 'Let me get a team member to help with that.';\n  let escalate = true;\n  try {\n    const content = item.json.choices[0].message.content;\n    const parsed = JSON.parse(content);\n    if (parsed.reply) reply = parsed.reply;\n    if (typeof parsed.escalate === 'boolean') escalate = parsed.escalate;\n  } catch (e) {\n    // keep fallback (escalate = true)\n  }\n  return {\n    json: {\n      message: $('Normalize Chat').item.json.message,\n      reply,\n      escalate,\n    },\n  };\n});"
+      },
+      "id": "7a4e5d4c-3333-4c33-9c33-000000000004",
+      "name": "Parse Chat Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [100, 600]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.escalate }}", "value2": true }]
+        }
+      },
+      "id": "7a4e5d4c-3333-4c33-9c33-000000000005",
+      "name": "Needs Escalation?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [320, 600]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": { "mode": "name", "value": "#support" },
+        "text": "=🚨 Customer chat escalated — AI couldn't answer confidently.\nQuestion: {{ $('Parse Chat Output').item.json.message }}\nAI reply given to customer: {{ $('Parse Chat Output').item.json.reply }}",
+        "otherOptions": {}
+      },
+      "id": "7a4e5d4c-3333-4c33-9c33-000000000006",
+      "name": "Notify Staff (configure credentials)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [540, 500],
+      "notes": "Requires a Slack credential and a #support channel (or change the channel name). Delete this node if you don't use Slack.",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { reply: $('Parse Chat Output').item.json.reply, escalate: $('Parse Chat Output').item.json.escalate } }}",
+        "options": {}
+      },
+      "id": "7a4e5d4c-3333-4c33-9c33-000000000007",
+      "name": "Respond to Chat Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [760, 600]
     }
   ],
   "connections": {
@@ -177,7 +276,18 @@
     "Notify Slack (configure credentials)": { "main": [[{ "node": "Respond to Lead Webhook", "type": "main", "index": 0 }]] },
     "Assistant Webhook": { "main": [[{ "node": "Ask OpenAI (Assistant)", "type": "main", "index": 0 }]] },
     "Ask OpenAI (Assistant)": { "main": [[{ "node": "Extract Reply", "type": "main", "index": 0 }]] },
-    "Extract Reply": { "main": [[{ "node": "Respond to Assistant Webhook", "type": "main", "index": 0 }]] }
+    "Extract Reply": { "main": [[{ "node": "Respond to Assistant Webhook", "type": "main", "index": 0 }]] },
+    "Chat Webhook": { "main": [[{ "node": "Normalize Chat", "type": "main", "index": 0 }]] },
+    "Normalize Chat": { "main": [[{ "node": "Ask OpenAI (Chat)", "type": "main", "index": 0 }]] },
+    "Ask OpenAI (Chat)": { "main": [[{ "node": "Parse Chat Output", "type": "main", "index": 0 }]] },
+    "Parse Chat Output": { "main": [[{ "node": "Needs Escalation?", "type": "main", "index": 0 }]] },
+    "Needs Escalation?": {
+      "main": [
+        [{ "node": "Notify Staff (configure credentials)", "type": "main", "index": 0 }],
+        [{ "node": "Respond to Chat Webhook", "type": "main", "index": 0 }]
+      ]
+    },
+    "Notify Staff (configure credentials)": { "main": [[{ "node": "Respond to Chat Webhook", "type": "main", "index": 0 }]] }
   },
   "active": false,
   "settings": { "executionOrder": "v1" }

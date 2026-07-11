@@ -15,13 +15,17 @@ Hosted at `https://n8n.srv1769884.hstgr.cloud/`. All AI calls (OpenAI) live
 here, not in the app — see [`n8n/README.md`](n8n/README.md) for full setup.
 
 One workflow, [`n8n/amygdala-workflow.json`](n8n/amygdala-workflow.json), with
-two independent webhook branches:
+three independent webhook branches:
 
 - **Lead capture** (`amygdala-lead-capture`) — Webhook → AI triage (insight +
   priority) → calls back to `/api/leads/callback` to auto-assign a
   salesperson → Slack → respond.
 - **AI Assistant** (`amygdala-ai-assistant`) — powers the dashboard's
   floating AI Assistant widget.
+- **Customer chat** (`amygdala-customer-chat`) — powers the public chat
+  widget on the marketing page; answers from Knowledge Base articles,
+  escalates to Slack + marks the conversation for staff follow-up when it
+  can't answer confidently.
 
 ## 3. Vercel
 
@@ -38,6 +42,7 @@ two independent webhook branches:
    | `N8N_WEBHOOK_URL` | Production URL of the lead-capture Webhook node |
    | `N8N_CALLBACK_SECRET` | random secret, must match the value pasted into the "Update Lead in Amygdala" node in n8n |
    | `N8N_ASSISTANT_WEBHOOK_URL` | Production URL of the AI-assistant Webhook node |
+   | `N8N_CHAT_WEBHOOK_URL` | Production URL of the customer-chat Webhook node |
 
 3. Deploy. `postinstall` runs `prisma generate` automatically so the Prisma
    client is (re)built on every install — no extra build config needed.

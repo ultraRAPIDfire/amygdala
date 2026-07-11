@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { LeadForm } from "@/components/marketing/lead-form";
+import { CustomerChatWidget } from "@/components/marketing/customer-chat-widget";
 
 const modules = [
   { icon: MessageSquare, title: "AI Customer Chat", desc: "Answers product, pricing, and booking questions instantly — escalates to staff only when it can't." },
@@ -151,6 +152,8 @@ export default function HomePage() {
           Amygdala — AI Business Operations Hub. Built with Next.js, Prisma, and n8n.
         </div>
       </footer>
+
+      <CustomerChatWidget />
     </div>
   );
 }
