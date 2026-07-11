@@ -41,7 +41,15 @@
       "Bash(curl -s -o /dev/null -w '%{http_code}\\\\n' -X POST http://localhost:3000/api/leads/callback -H 'Content-Type: application/json' -H 'x-n8n-secret: wrong-secret' -d '{\"leadId\":\"cmrgltlc6000g1k2olfi6ptjz\"}')",
       "Bash(git rm *)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"https://raw.githubusercontent.com/ultraRAPIDfire/amygdala/main/n8n/amygdala-workflow.json\")",
-      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('n8n/amygdala-workflow.json', 'utf8'\\)\\); console.log\\('valid JSON'\\)\")"
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('n8n/amygdala-workflow.json', 'utf8'\\)\\); console.log\\('valid JSON'\\)\")",
+      "Bash(curl -s -o /tmp/resp.txt -w 'HTTP_STATUS:%{http_code}\\\\n' -X POST https://amygdala-chi.vercel.app/api/leads/callback -H 'Content-Type: application/json' -H 'x-n8n-secret: 0ecf1e2951f6885bc227f4092512915b1eae0e9bf0f5497d' -d '{\"leadId\":\"cmrgqr2xh00000414ue4itthe\",\"aiInsight\":\"test from claude\",\"priority\":\"CONTACTED\"}')",
+      "Read(//tmp/**)",
+      "Bash(DATABASE_URL='postgresql://neondb_owner:npg_BuIHygbVs93R@ep-holy-wind-aomwftwq-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require' node -e ' *)",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_BuIHygbVs93R@ep-holy-wind-aomwftwq-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" npx tsx \"C:\\\\Users\\\\jcrey\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\D--vs-STUDIO-REPO-amygdala\\\\39142704-7323-4a3a-af39-b3d3f895f0ef\\\\scratchpad\\\\check-lead.ts\")",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_BuIHygbVs93R@ep-holy-wind-aomwftwq-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" npx tsx _check-lead.ts)",
+      "Bash(curl -s -w '\\\\nHTTP_STATUS:%{http_code}\\\\n' -X POST https://amygdala-chi.vercel.app/api/leads/callback -H 'Content-Type: application/json' -H 'x-n8n-secret: 0ecf1e2951f6885bc227f4092512915b1eae0e9bf0f5497d' -d '{\"leadId\":\"cmrgqr2xh000004l4ue4itthe\",\"aiInsight\":\"test from claude\",\"priority\":\"CONTACTED\"}')",
+      "Bash(DATABASE_URL=\"postgresql://amygdala:amygdala@localhost:5433/amygdala?schema=public\" npx tsx _create-admin.ts)",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_BuIHygbVs93R@ep-holy-wind-aomwftwq-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" npx tsx _create-admin.ts)"
     ]
   }
 }
