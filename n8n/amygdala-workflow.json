@@ -1,5 +1,5 @@
 {
-  "name": "Amygdala - Lead Capture (AI Triage)",
+  "name": "Amygdala - AI Workflows",
   "nodes": [
     {
       "parameters": {
@@ -9,7 +9,7 @@
         "options": {}
       },
       "id": "8e1c2b1a-1111-4a11-9a11-000000000001",
-      "name": "Webhook",
+      "name": "Lead Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [-560, 0]
@@ -49,7 +49,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [-120, 0],
-      "notes": "Select your OpenAI credential after import (Authentication: Predefined Credential Type)."
+      "notes": "Set Authentication credential to your OpenAI credential after import."
     },
     {
       "parameters": {
@@ -82,7 +82,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [320, 0],
-      "notes": "Replace REPLACE_WITH_N8N_CALLBACK_SECRET with the N8N_CALLBACK_SECRET value from the app's env vars."
+      "notes": "Replace REPLACE_WITH_N8N_CALLBACK_SECRET with the N8N_CALLBACK_SECRET value from Vercel env vars."
     },
     {
       "parameters": {
@@ -109,19 +109,75 @@
         "options": {}
       },
       "id": "8e1c2b1a-1111-4a11-9a11-000000000004",
-      "name": "Respond to Webhook",
+      "name": "Respond to Lead Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [760, 0]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "amygdala-ai-assistant",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "9f2d3c2b-2222-4b22-8b22-000000000001",
+      "name": "Assistant Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-560, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o-mini', temperature: 0.4, messages: [ { role: 'system', content: 'You are Amygdala\\'s AI business assistant embedded in a small business dashboard for ' + ($json.body.context.organizationName || 'the team') + '. Live context: ' + $json.body.context.todaysAppointments + ' appointments today, ' + $json.body.context.newLeads + ' new leads, ' + $json.body.context.pendingInvoices + ' pending invoices, ' + $json.body.context.aiTasksToday + ' AI tasks completed today. Answer the user\\'s question concisely and reference this context when relevant.' }, { role: 'user', content: $json.body.message } ] }) }}",
+        "options": {}
+      },
+      "id": "9f2d3c2b-2222-4b22-8b22-000000000002",
+      "name": "Ask OpenAI (Assistant)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-340, 300],
+      "notes": "Set Authentication credential to your OpenAI credential after import."
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nreturn items.map((item) => {\n  let reply = \"Sorry, I couldn't generate a response.\";\n  try {\n    reply = item.json.choices[0].message.content;\n  } catch (e) {\n    // keep fallback\n  }\n  return { json: { reply } };\n});"
+      },
+      "id": "9f2d3c2b-2222-4b22-8b22-000000000003",
+      "name": "Extract Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { reply: $json.reply } }}",
+        "options": {}
+      },
+      "id": "9f2d3c2b-2222-4b22-8b22-000000000004",
+      "name": "Respond to Assistant Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [100, 300]
     }
   ],
   "connections": {
-    "Webhook": { "main": [[{ "node": "Normalize Lead", "type": "main", "index": 0 }]] },
+    "Lead Webhook": { "main": [[{ "node": "Normalize Lead", "type": "main", "index": 0 }]] },
     "Normalize Lead": { "main": [[{ "node": "AI Triage (OpenAI)", "type": "main", "index": 0 }]] },
     "AI Triage (OpenAI)": { "main": [[{ "node": "Parse AI Output", "type": "main", "index": 0 }]] },
     "Parse AI Output": { "main": [[{ "node": "Update Lead in Amygdala", "type": "main", "index": 0 }]] },
     "Update Lead in Amygdala": { "main": [[{ "node": "Notify Slack (configure credentials)", "type": "main", "index": 0 }]] },
-    "Notify Slack (configure credentials)": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] }
+    "Notify Slack (configure credentials)": { "main": [[{ "node": "Respond to Lead Webhook", "type": "main", "index": 0 }]] },
+    "Assistant Webhook": { "main": [[{ "node": "Ask OpenAI (Assistant)", "type": "main", "index": 0 }]] },
+    "Ask OpenAI (Assistant)": { "main": [[{ "node": "Extract Reply", "type": "main", "index": 0 }]] },
+    "Extract Reply": { "main": [[{ "node": "Respond to Assistant Webhook", "type": "main", "index": 0 }]] }
   },
   "active": false,
   "settings": { "executionOrder": "v1" }

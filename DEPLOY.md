@@ -9,16 +9,19 @@ DATABASE_URL="<neon-connection-string>" npx prisma migrate deploy
 DATABASE_URL="<neon-connection-string>" npx prisma db seed
 ```
 
-## 2. n8n workflows
+## 2. n8n workflow
 
 Hosted at `https://n8n.srv1769884.hstgr.cloud/`. All AI calls (OpenAI) live
-here, not in the app — see [`n8n/README.md`](n8n/README.md) for full setup:
+here, not in the app — see [`n8n/README.md`](n8n/README.md) for full setup.
 
-- [`n8n/lead-capture-workflow.json`](n8n/lead-capture-workflow.json) — Webhook
-  → AI triage (insight + priority) → calls back to `/api/leads/callback` to
-  auto-assign a salesperson → Slack → respond.
-- [`n8n/ai-assistant-workflow.json`](n8n/ai-assistant-workflow.json) — powers
-  the dashboard's floating AI Assistant widget.
+One workflow, [`n8n/amygdala-workflow.json`](n8n/amygdala-workflow.json), with
+two independent webhook branches:
+
+- **Lead capture** (`amygdala-lead-capture`) — Webhook → AI triage (insight +
+  priority) → calls back to `/api/leads/callback` to auto-assign a
+  salesperson → Slack → respond.
+- **AI Assistant** (`amygdala-ai-assistant`) — powers the dashboard's
+  floating AI Assistant widget.
 
 ## 3. Vercel
 

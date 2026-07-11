@@ -1,73 +1,78 @@
-# n8n workflows
+# n8n workflow
 
-Two workflows, both using your OpenAI key **only inside n8n** — the app never
-sees it.
+One workflow, two independent triggers, both using your OpenAI key **only
+inside n8n** — the app never sees it.
+
+## Delete anything you already imported
+
+If you previously imported `lead-capture-workflow.json` and/or
+`ai-assistant-workflow.json`, delete those workflows in n8n first so you
+don't end up with duplicate/conflicting webhook paths. Then import
+`amygdala-workflow.json` fresh — it replaces both.
 
 ## One-time setup: OpenAI credential
 
 1. In n8n: **Credentials → Add credential → OpenAi**.
 2. Paste your OpenAI API key, save (name it anything, e.g. "OpenAI").
-3. Both HTTP Request nodes below that call `api.openai.com` use
-   **Authentication: Predefined Credential Type → OpenAi API** — after
-   importing each workflow, open those nodes and pick this credential from
-   the dropdown (credentials aren't portable across n8n instances, so this
-   step can't be pre-filled by the import).
+3. Both HTTP Request nodes that call `api.openai.com` — **AI Triage (OpenAI)**
+   and **Ask OpenAI (Assistant)** — use **Authentication: Predefined
+   Credential Type → OpenAi API**. After import, open each node and pick this
+   credential from the dropdown (credentials aren't portable across n8n
+   instances, so this step can't be pre-filled by the import).
 
-## 1. Lead capture (`lead-capture-workflow.json`)
+## Import `amygdala-workflow.json`
 
-Replaces the earlier version. New flow:
+Workflows → **Import from URL** (or **Import from File** / paste JSON onto
+the canvas):
 
 ```
-Webhook → Normalize Lead → AI Triage (OpenAI) → Parse AI Output
-        → Update Lead in Amygdala (callback) → Notify Slack → Respond to Webhook
+https://raw.githubusercontent.com/ultraRAPIDfire/amygdala/main/n8n/amygdala-workflow.json
+```
+
+This creates one workflow, **Amygdala - AI Workflows**, with two branches:
+
+### Branch A — Lead capture (webhook path `amygdala-lead-capture`)
+
+```
+Lead Webhook → Normalize Lead → AI Triage (OpenAI) → Parse AI Output
+             → Update Lead in Amygdala (callback) → Notify Slack → Respond to Lead Webhook
 ```
 
 - **AI Triage (OpenAI)** — sends the lead's name/email/message to GPT-4o-mini,
-  asks for strict JSON `{ insight, priority }` (priority ∈ NEW/CONTACTED/QUALIFIED).
-- **Parse AI Output** — a Code node that safely parses that JSON (falls back
-  to `NEW` / "AI analysis unavailable" if the model output isn't valid JSON).
-- **Update Lead in Amygdala** — calls back into the app at
-  `POST /api/leads/callback`. This is what fixes the "always Unassigned"
-  problem: the app does least-loaded round-robin assignment across your
-  team and returns who got assigned.
-  - Open this node and replace `REPLACE_WITH_N8N_CALLBACK_SECRET` in the
-    `x-n8n-secret` header with the real `N8N_CALLBACK_SECRET` value (ask
-    Claude / check your Vercel env vars).
+  asks for strict JSON `{ insight, priority }`.
+- **Parse AI Output** — Code node that safely parses that JSON (falls back
+  to `NEW` / "AI analysis unavailable" if parsing fails).
+- **Update Lead in Amygdala** — calls `POST /api/leads/callback` in the app,
+  which does least-loaded round-robin assignment across your team. Open this
+  node and replace `REPLACE_WITH_N8N_CALLBACK_SECRET` in the `x-n8n-secret`
+  header with the real secret (matches `N8N_CALLBACK_SECRET` in Vercel).
 - **Notify Slack** — needs a Slack credential selected, or delete the node.
 
-### Import steps
-
-1. Workflows → **Import from File** → `lead-capture-workflow.json`.
-2. If you still have the old version active, deactivate/delete it first (or
-   just replace its contents by importing over it).
-3. Set the OpenAI credential on **AI Triage (OpenAI)**.
-4. Set the real secret on **Update Lead in Amygdala**.
-5. Set/remove the Slack credential on **Notify Slack**.
-6. **Activate** the workflow. The Webhook path is unchanged
-   (`amygdala-lead-capture`), so `N8N_WEBHOOK_URL` in the app doesn't need
-   to change.
-
-## 2. AI Assistant (`ai-assistant-workflow.json`)
-
-Powers the floating "AI Assistant" widget in the dashboard.
+### Branch B — AI Assistant (webhook path `amygdala-ai-assistant`)
 
 ```
-Webhook → Ask OpenAI → Extract Reply → Respond to Webhook
+Assistant Webhook → Ask OpenAI (Assistant) → Extract Reply → Respond to Assistant Webhook
 ```
 
-The app calls this webhook from `POST /api/ai/assistant` (server-side, after
-attaching live stats — today's appointments, new leads, pending invoices, AI
-tasks completed) and returns whatever this workflow replies with.
+Powers the floating "AI Assistant" widget in the dashboard. The app calls
+this from `POST /api/ai/assistant` with the user's message plus live business
+stats, and returns whatever this branch replies with.
 
-### Import steps
+## After configuring both branches
 
-1. Workflows → **Import from File** → `ai-assistant-workflow.json`.
-2. Set the OpenAI credential on **Ask OpenAI**.
-3. **Activate** the workflow.
-4. Copy the **Production URL** of the Webhook node (something like
-   `https://n8n.srv1769884.hstgr.cloud/webhook/amygdala-ai-assistant`) and
-   set it as `N8N_ASSISTANT_WEBHOOK_URL` in the app's env vars (local `.env`
-   and Vercel).
+1. **Activate** the workflow (one toggle covers both branches/webhooks).
+2. Open **Lead Webhook** → copy its Production URL → set as `N8N_WEBHOOK_URL`
+   in Vercel:
+   ```
+   https://n8n.srv1769884.hstgr.cloud/webhook/amygdala-lead-capture
+   ```
+3. Open **Assistant Webhook** → copy its Production URL → set as
+   `N8N_ASSISTANT_WEBHOOK_URL` in Vercel:
+   ```
+   https://n8n.srv1769884.hstgr.cloud/webhook/amygdala-ai-assistant
+   ```
+4. These two URLs must be **different** (different path at the end). Redeploy
+   in Vercel after setting them.
 
 While a workflow is deactivated, n8n only listens on the **Test URL**
 (`/webhook-test/...`) for one request at a time — always activate before
