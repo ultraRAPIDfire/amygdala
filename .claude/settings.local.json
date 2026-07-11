@@ -25,7 +25,13 @@
       "Bash(curl -s https://api.github.com/repos/ultraRAPIDfire/amygdala)",
       "Bash(git branch *)",
       "Bash(git remote *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(curl -s https://api.github.com/repos/ultraRAPIDfire/amygdala/commits/main)",
+      "Bash(npx auth *)",
+      "Bash(node -e \"console.log\\(require\\('crypto'\\).randomBytes\\(32\\).toString\\('base64'\\)\\)\")",
+      "Bash(git check-ignore *)"
     ]
   }
 }

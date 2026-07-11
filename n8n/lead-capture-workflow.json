@@ -1,0 +1,114 @@
+{
+  "name": "Amygdala - Lead Capture",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "amygdala-lead-capture",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "8e1c2b1a-1111-4a11-9a11-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-140, 0]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-name",
+              "name": "name",
+              "type": "string",
+              "value": "={{ $json.body.lead.name }}"
+            },
+            {
+              "id": "assign-email",
+              "name": "email",
+              "type": "string",
+              "value": "={{ $json.body.lead.email }}"
+            },
+            {
+              "id": "assign-phone",
+              "name": "phone",
+              "type": "string",
+              "value": "={{ $json.body.lead.phone || 'n/a' }}"
+            },
+            {
+              "id": "assign-message",
+              "name": "message",
+              "type": "string",
+              "value": "={{ $json.body.lead.message || '(no message)' }}"
+            },
+            {
+              "id": "assign-leadId",
+              "name": "leadId",
+              "type": "string",
+              "value": "={{ $json.body.lead.id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8e1c2b1a-1111-4a11-9a11-000000000002",
+      "name": "Normalize Lead",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [80, 0]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "mode": "name",
+          "value": "#sales"
+        },
+        "text": "=🆕 New lead from amygdala.\nName: {{ $json.name }}\nEmail: {{ $json.email }}\nPhone: {{ $json.phone }}\nMessage: {{ $json.message }}",
+        "otherOptions": {}
+      },
+      "id": "8e1c2b1a-1111-4a11-9a11-000000000003",
+      "name": "Notify Slack (configure credentials)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [300, 0],
+      "notes": "Requires a Slack credential to be configured in n8n. Disable/delete this node if you don't use Slack yet.",
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, leadId: $json.leadId } }}",
+        "options": {}
+      },
+      "id": "8e1c2b1a-1111-4a11-9a11-000000000004",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [520, 0]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{ "node": "Normalize Lead", "type": "main", "index": 0 }]
+      ]
+    },
+    "Normalize Lead": {
+      "main": [
+        [{ "node": "Notify Slack (configure credentials)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Notify Slack (configure credentials)": {
+      "main": [
+        [{ "node": "Respond to Webhook", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" }
+}
